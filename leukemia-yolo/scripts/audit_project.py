@@ -122,6 +122,14 @@ def main():
         benchmark = {"samples": samples, "training_cells": train_count,
                      "estimated_epoch_seconds_from_two_batch_smoke": train_count / (sum(rates) / len(rates)),
                      "warning": "Two-batch startup measurements are preliminary; sustained epoch speed may differ."}
+        completed = sorted((cfg["output_path"] / "classifier/full_finetune").glob("full_*/completed.json"))
+        if completed:
+            history = pd.read_csv(completed[-1].parent / "training_history.csv")
+            benchmark["completed_full_run"] = {"run": str(completed[-1].parent),
+                "epochs": len(history), "total_epoch_seconds": float(history.epoch_seconds.sum()),
+                "median_epoch_seconds": float(history.epoch_seconds.median()),
+                "median_training_samples_per_second": float(history.samples_per_second.median())}
+            benchmark["warning"] = "Use completed-run timings for reporting; the two-batch startup estimate was much too slow."
         write_json(output / "training_benchmark.json", benchmark)
     lines = ["# Project audit", "", f"Generated UTC: {report['generated_utc']}", "",
              "Saved baseline and YOLO metrics are historical measured results. BCCD has no ALL/HEM labels.", "",

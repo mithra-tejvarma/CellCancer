@@ -256,7 +256,8 @@ def main():
             pd.DataFrame([metrics]).to_csv(run / f"{split}_metrics.csv", index=False)
             figures = run / split
             figures.mkdir(exist_ok=True)
-            _plot_evaluation(frame.class_id.to_numpy(), scores, metrics, figures)
+            _plot_evaluation(frame.class_id.to_numpy(), scores, metrics, figures,
+                             "Validation" if split == "val" else "Held-out test")
         write_json(run / "completed.json", {"completed_utc": datetime.now(timezone.utc).isoformat(),
                                               "fine_tune_mode": config["fine_tune_mode"], "best_validation_macro_f1": best_f1})
     except torch.cuda.OutOfMemoryError:

@@ -57,7 +57,7 @@ def predict_manifest(model, frame: pd.DataFrame, image_size: int, device, batch_
     return scores
 
 
-def _plot_evaluation(truth, scores, metrics: dict, folder: Path):
+def _plot_evaluation(truth, scores, metrics: dict, folder: Path, split_label: str = "Held-out test"):
     pred = (np.asarray(scores) >= metrics["threshold"]).astype(int)
     cm = confusion_matrix(truth, pred, labels=[0, 1])
     for normalized, filename in ((False, "confusion_matrix.png"), (True, "confusion_matrix_normalized.png")):
@@ -73,11 +73,11 @@ def _plot_evaluation(truth, scores, metrics: dict, folder: Path):
         fpr, tpr, _ = roc_curve(truth, scores)
         fig, ax = plt.subplots(); ax.plot(fpr, tpr, label=f"AUC {metrics['roc_auc']:.3f}")
         ax.plot([0, 1], [0, 1], linestyle="--", color="gray"); ax.legend()
-        ax.set(xlabel="False positive rate", ylabel="Blast sensitivity", title="Held-out test ROC")
+        ax.set(xlabel="False positive rate", ylabel="Blast sensitivity", title=f"{split_label} ROC")
         fig.tight_layout(); fig.savefig(folder / "roc_curve.png", dpi=220); plt.close(fig)
         precision, recall, _ = precision_recall_curve(truth, scores)
         fig, ax = plt.subplots(); ax.plot(recall, precision)
-        ax.set(xlabel="Blast recall", ylabel="Blast precision", title="Held-out test PR")
+        ax.set(xlabel="Blast recall", ylabel="Blast precision", title=f"{split_label} PR")
         fig.tight_layout(); fig.savefig(folder / "pr_curve.png", dpi=220); plt.close(fig)
 
 

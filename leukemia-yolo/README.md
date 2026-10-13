@@ -228,4 +228,4 @@ The integrated demo can be run locally after installing `requirements-no-torch.t
 python -m uvicorn src.dashboard:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
-The dashboard currently loads the preserved baseline classifier checkpoint. Results are saved under `outputs/inference/<run_id>`; uploaded source bytes are not copied there. Use `DELETE /runs/<run_id>` to remove one result directory. The displayed model scores are uncalibrated, and the image-level blast fraction uses accepted classified WBCs only.
+The dashboard loads the newest completed full-backbone checkpoint when available, otherwise the preserved baseline classifier checkpoint. Results are saved under `outputs/inference/<run_id>`; uploaded source bytes are not copied there. Use `DELETE /runs/<run_id>` to remove one result directory. The displayed model scores are uncalibrated, and the image-level blast fraction uses accepted classified WBCs only.

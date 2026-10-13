@@ -23,9 +23,13 @@ def setup():
         cfg = load_config()
         _root = cfg["output_path"] / "inference"
         _root.mkdir(parents=True, exist_ok=True)
+        completed = sorted((cfg["output_path"] / "classifier/full_finetune").glob("full_*/completed.json"),
+                           key=lambda path: path.stat().st_mtime_ns)
+        classifier_checkpoint = (completed[-1].parent / "best_model.pth" if completed
+                                 else cfg["output_path"] / "classifier/runs/efficientnet_b3_20261013T110511Z_67988092/best_model.pth")
         _pipeline = SmearPipeline(
             cfg["output_path"] / "checkpoints/main_20261013T090007Z_a25a7934/weights/best.pt",
-            cfg["output_path"] / "classifier/runs/efficientnet_b3_20261013T110511Z_67988092/best_model.pth",
+            classifier_checkpoint,
             device=cfg["device"], confidence=cfg["confidence"], iou=cfg["iou"], gradcam=True)
 
 
