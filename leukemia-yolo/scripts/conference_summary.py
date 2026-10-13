@@ -49,6 +49,14 @@ def main():
         lines += ["", f"Full model confusion matrix: TN {metric['tn']}, FP {metric['fp']}, FN {metric['fn']}, TP {metric['tp']}.", "",
                   f"Paired subject-bootstrap 95% interval for macro F1 change: {delta['macro_f1']['lower_95']:+.3f} to {delta['macro_f1']['upper_95']:+.3f}; for specificity change: {delta['normal_specificity']['lower_95']:+.3f} to {delta['normal_specificity']['upper_95']:+.3f}. These are descriptive intervals from 31 test subjects and do not remove prior test-set exposure.", "",
                   "Figures: `review/training_curves.png`, `test/confusion_matrix.png`, `test/roc_curve.png`, and `test/pr_curve.png` within the full run. Full metadata and rechecked metrics: `review/review_metrics.json`.", ""]
+    improvements = output / "classifier/improvements"
+    if (improvements / "qualified_comparison.json").exists():
+        item = json.loads((improvements / "qualified_comparison.json").read_text())
+        candidate = item["candidate"]
+        lines += ["## Exploratory specificity study", "",
+                  "The control, mild-augmentation, and unweighted-loss arms started from the same verified full checkpoint and were compared using validation specificity subject to blast sensitivity at least 0.95. Only the validation-selected unweighted-loss candidate received one qualified fold_2 evaluation; the old test set had prior exposure.", "",
+                  f"The candidate reached fold_2 specificity {candidate['normal_specificity']:.3f}, sensitivity {candidate['blast_sensitivity']:.3f}, and macro F1 {candidate['macro_f1']:.3f}. Its sensitivity fell below 0.95, so the established full checkpoint remains deployed.", "",
+                  "Development diagnostics and all trial histories are under `outputs/classifier/improvement_audit/` and `outputs/classifier/improvements/`. The independent five-fold cross-validation plan is verified but training was not run.", ""]
     lines += [
               "", "## Data sources and limitations", "",
               "BCCD: https://github.com/Shenggan/BCCD_Dataset", "",

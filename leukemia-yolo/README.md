@@ -229,3 +229,21 @@ python -m uvicorn src.dashboard:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
 The dashboard loads the newest completed full-backbone checkpoint when available, otherwise the preserved baseline classifier checkpoint. Results are saved under `outputs/inference/<run_id>`; uploaded source bytes are not copied there. Use `DELETE /runs/<run_id>` to remove one result directory. The displayed model scores are uncalibrated, and the image-level blast fraction uses accepted classified WBCs only.
+
+## Specificity improvement study
+
+The development audit and threshold plots are saved under `outputs/classifier/improvement_audit/`. The current full checkpoint, detector checkpoint, source images, and subject manifests remain unchanged. The audit selects a development-only operating point by maximizing validation specificity subject to blast sensitivity of at least 0.95. It does not update the dashboard threshold.
+
+Three controlled continuation arms start from the same full checkpoint: `control` retains the prior augmentation and class weights; `augmentation_trial` adds restrained vertical flips and color variation; `class_weight_trial` retains prior augmentation but removes inverse-frequency loss weights. Run one arm at a time:
+
+```powershell
+python scripts/run_improvement_trial.py --arm control --smoke
+python scripts/run_improvement_trial.py --arm control --epochs 8 --patience 3
+python scripts/run_improvement_trial.py --arm augmentation_trial --epochs 8 --patience 3
+python scripts/run_improvement_trial.py --arm class_weight_trial --epochs 8 --patience 3
+python scripts/improvement_results.py
+```
+
+All arms select checkpoints using development validation only, with the same specificity-and-sensitivity objective. Trial outputs are isolated under `outputs/classifier/improvements/<arm>/<run_id>/`. Fold_2 is excluded from training and selection. `python scripts/subject_cv.py --folds 5` writes a verified cross-validation plan; `--run` trains fresh ImageNet-initialized EfficientNet-B3 models independently for each fold, which can take substantially longer. Notebooks 21–26 inspect these artifacts and launch optional long runs through `sys.executable` and a subprocess.
+
+The completed study includes one separately frozen, validation-selected candidate evaluation on the previously examined fold_2 set. Read `outputs/classifier/improvements/qualified_comparison.md` before considering a model change. The unweighted-loss candidate raises normal specificity but drops blast sensitivity below the prespecified 0.95 level; the established full checkpoint and dashboard selection remain unchanged. Further model tuning should use new development subjects rather than fold_2.
