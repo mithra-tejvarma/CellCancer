@@ -127,4 +127,67 @@ python scripts/predict_yolo.py --help
 
 The tests generate both exact-layout Kaggle JPEG/JSON fixtures and original VOC JPEG/XML fixtures, execute selected nontraining notebooks, and check conversion, split preservation, leakage, report schema and notebook validity. They do **not** establish real BCCD detection accuracy. On the ASUS laptop, verify the real dataset in notebooks 01–03, perform the short CUDA smoke training and checkpoint load in notebook 04, then full training, held-out test evaluation and prediction smoke test. Report only metrics produced by that run.
 
+## Stage 2 — C-NMC EfficientNet-B3 cell classification and Grad-CAM
+
+Stage 2 is independent of the BCCD detection experiment. Its source is the [Kaggle C-NMC mirror](https://www.kaggle.com/datasets/avk256/cnmc-leukemia) of the [C-NMC-2019 collection at TCIA](https://www.cancerimagingarchive.net/collection/c-nmc-2019/). TCIA lists the original collection under **CC BY 3.0** and requires the dataset citation: Mourya, S., Kant, S., Kumar, P., Gupta, A., & Gupta, R. (2019), *ALL Challenge dataset of ISBI 2019 (C-NMC 2019)*, DOI [10.7937/tcia.2019.dc64i46r](https://doi.org/10.7937/tcia.2019.dc64i46r). Check the Kaggle mirror's displayed terms as well. The [official C-NMC readme](https://dev.cancerimagingarchive.net/wp-content/uploads/CNMC_readme.pdf) documents subject-disjoint folds, patient filename fields, and the labeled training total of 7,272 ALL plus 3,389 HEM cells from 73 subjects. Those are reference counts; notebook 09 reports the files actually found locally.
+
+Class **0 = Normal (HEM)**; class **1 = Leukemic Blast (ALL)**. Here ALL means *Acute Lymphoblastic Leukemia*. This classifier does not change or retrain YOLO. A YOLO WBC crop can later be passed to `predict_cell`, but a combined end-to-end pipeline and dashboard are not implemented.
+
+### Set the existing dataset path once
+
+Keep the already downloaded C-NMC dataset on its current drive. In the existing ignored `config.local.yaml`, add or edit `cnmc_root` to its **actual absolute path**; the example below is illustrative only. Do not overwrite an existing local config containing your BCCD path.
+
+```yaml
+cnmc_root: "D:/Datasets/C-NMC_Leukemia"
+```
+
+The discovery code accepts a root pointing directly to `training_data`, to its parent, or to a wrapper with extra nesting. It verifies `fold_0`, `fold_1`, and `fold_2`, each containing `all` and `hem` directories, case-insensitively. If more than one such root exists beneath the configured path, select the intended one explicitly. Source BMPs are read in place; only manifests, metadata, figures and checkpoints are saved under `outputs/classifier/`. Preliminary/final challenge testing folders are not mixed with the three labeled training folds. If you do not have the data yet, download manually from Kaggle or, after setting up Kaggle authentication, run `kaggle datasets download -d avk256/cnmc-leukemia -p D:\Datasets\C-NMC-download`; extract into a **new empty** directory rather than over existing data. Kaggle access may require an account. Training never downloads the dataset automatically.
+
+### Reuse the same CUDA environment
+
+Open **Anaconda Prompt** in `CellCancer\leukemia-yolo`:
+
+```bat
+conda activate leukemia-yolo
+setup_conda.bat
+conda activate leukemia-yolo
+python -c "import torch,torchvision,pytorch_grad_cam,sklearn; print(torch.__version__,torchvision.__version__,torch.cuda.is_available())"
+launch_jupyter.bat
+```
+
+`setup_conda.bat` adds the minimal Stage 2 packages from `requirements-no-torch.txt` while constraining the installed Torch/Torchvision versions. It stops for manual CUDA PyTorch selection if a compatible CUDA build is missing; use the [official PyTorch selector](https://pytorch.org/get-started/locally/) rather than replacing a working GPU build with a CPU wheel. **The Jupyter kernel must be Python (leukemia-yolo).** Do not use the base Conda environment.
+
+Run these notebooks in order after the Stage 1 notebooks, or independently if Stage 1 has already been completed:
+
+| Notebook | What to check | Main output |
+|---|---|---|
+| `08_CNMC_Environment_Check` | CUDA, Torch/Torchvision, driver, RAM/VRAM and source path | `outputs/classifier/environment_report.json` |
+| `09_CNMC_Dataset_Inspection` | Actual fold/class counts, subjects, duplicate files and example cells | `outputs/classifier/cnmc_manifest.csv` |
+| `10_CNMC_Patient_Split` | Saved subject, path and hash-disjoint manifests | `outputs/classifier/splits/` |
+| `11_EfficientNet_B3_Training` | One-batch checks, CUDA smoke, head training and fine tuning | `outputs/classifier/runs/<run>/best_model.pth` |
+| `12_EfficientNet_B3_Evaluation` | Untouched `fold_2` cell-level metrics | `outputs/classifier/paper_results/` |
+| `13_EfficientNet_B3_GradCAM` | Correct/incorrect prediction overlays | `outputs/classifier/gradcam/` |
+| `14_Classification_Paper_Results` | Actual evidence and limitations; missing results stay unavailable | `outputs/classifier/paper_results/classifier_experiment_summary.md` |
+
+Notebook 10 fixes `fold_2` as test and makes a class-stratified **subject** split from folds 0 and 1. It reuses its saved CSVs on rerun and stops if the source or manifest changes. There is no image-level random split. Notebook 11 defaults to B3 ImageNet weights, RGB 224×224, batch 8, four head epochs and eight partial fine-tuning epochs, train-only class weights, AMP and validation macro-F1 checkpoint selection. Its 224-pixel square resize differs from the pretrained weights' nominal 300-pixel center crop; the exact preprocessing is stored in the checkpoint. Set `classifier_image_size: 300` only for a separate new experiment. If Windows DataLoader workers fail, set `classifier_workers: 0` in local config or pass `--workers 0`.
+
+### Terminal commands and results
+
+After notebook 10 has saved the manifests, these commands run in the **existing** activated environment:
+
+```bat
+python scripts\train_classifier.py --mode smoke
+python scripts\train_classifier.py --mode full
+python scripts\train_classifier.py --mode full --resume outputs\classifier\runs\YOUR_RUN\last_checkpoint.pth
+python scripts\evaluate_classifier.py --checkpoint outputs\classifier\runs\YOUR_RUN\best_model.pth
+python scripts\generate_gradcam.py --checkpoint outputs\classifier\runs\YOUR_RUN\best_model.pth --predictions outputs\classifier\paper_results\test_predictions.csv --output outputs\classifier\gradcam
+python scripts\predict_classifier.py --checkpoint outputs\classifier\runs\YOUR_RUN\best_model.pth --input outputs\wbc_crops --output outputs\classifier\crop_predictions
+```
+
+The training script logs each completed epoch to `training_history.csv` and `training_log.txt` in a timestamped run. `best_model.pth` is selected by validation macro-F1; `last_checkpoint.pth` stores optimizer/scaler/RNG state for resumption. Stop with Ctrl+C or Jupyter Interrupt; resume from the last completed epoch. A genuine CUDA OOM retries only with a smaller batch (8→4→2), logs the change, and never switches training to CPU. If the first epoch fails before any checkpoint, the failed run is preserved and the retry gets a new run directory. `--max-minutes 360` sets an optional six-hour budget checked after each epoch. Use `--mode head` followed by `--mode fine --resume ...` if separate phases are preferred. The full training notebook performs the smoke gate before starting a new full run.
+
+Read `training_history.csv` for loss, validation accuracy, validation macro-F1, blast sensitivity, elapsed time and peak allocated GPU memory. Test metrics, confusion matrices, ROC/PR figures, classification reports and test predictions are in `outputs/classifier/paper_results/`. Grad-CAM overlays and the multi-image figure are in `outputs/classifier/gradcam/`. Notebook 14 writes the paper table, methodology, limitations and summary. It never treats separate YOLO and classifier metrics as a measured combined-system accuracy. Classifier outputs are ignored by Git, as are C-NMC images, `.pth` checkpoints and machine-specific config.
+
+If `cnmc_root` is wrong, notebook 09 names the missing verified fold layout. If a UID filename is unsupported, it stops instead of inventing a subject ID. If split files or source hashes change, preserve the old run for reproducibility and resolve the discrepancy before creating a new experiment. If pretrained weights are unavailable offline, place the official Torchvision weights in the standard PyTorch cache before training; checkpoint inference and evaluation never download weights. CUDA failures in notebook 08 must be fixed before running notebook 11. Grad-CAM regions are model-influential pixels, not proof of a cell feature or clinical diagnosis.
+
 Official resources: [BCCD source](https://github.com/Shenggan/BCCD_Dataset), [Ultralytics training](https://docs.ultralytics.com/modes/train/), [PyTorch CUDA installation](https://pytorch.org/get-started/locally/).

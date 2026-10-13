@@ -35,7 +35,7 @@ def load_config(path: str | Path | None = None) -> dict:
         config.update(overrides)
     elif selected:
         raise FileNotFoundError(f"Configuration not found: {local}")
-    for key in ("dataset_root", "processed_data_path", "output_path"):
+    for key in ("dataset_root", "processed_data_path", "output_path", "cnmc_root"):
         config[key] = resolve_path(config[key])
     if config["model"] != "yolov8n.pt":
         raise ValueError("Stage 1 requires pretrained YOLOv8n detection weights: yolov8n.pt")

@@ -9,6 +9,11 @@ venv/
 envs/
 *.egg-info/
 *.pt
+*.pth
+*.bmp
+*.jpeg
+*.jpg
+*.png
 *.onnx
 *.engine
 *.cache
@@ -16,6 +21,11 @@ envs/
 *.zip
 *.tar*
 BCCD*/
+C-NMC*/
+training_data/
+testing_data/
+*.7z
+*.rar
 data/**
 !data/.gitkeep
 !data/processed/

@@ -67,3 +67,28 @@ def synthetic_kaggle(tmp_path):
     config_path = tmp_path / "config.local.yaml"
     config_path.write_text(yaml.safe_dump(overrides), encoding="utf-8")
     return root, config_path, load_config(config_path)
+
+
+@pytest.fixture
+def synthetic_cnmc(tmp_path):
+    """Three labeled folds with distinct ALL and HEM subjects and source-only BMPs."""
+    from src.classifier_config import classifier_config
+    root = tmp_path / "C-NMC_Leukemia"
+    training = root / "nested" / "training_data"
+    for fold in range(3):
+        for name in ("all", "hem"):
+            (training / f"fold_{fold}" / name).mkdir(parents=True)
+    # Five subjects/class in folds 0+1; one/class in held-out fold 2.
+    for label, marker in (("all", ""), ("hem", "H")):
+        for index in range(1, 7):
+            fold = 2 if index == 6 else index % 2
+            for cell in (1, 2):
+                path = training / f"fold_{fold}" / label / f"UID_{marker}{index}_{index}_{cell}_{label}.bmp"
+                image = Image.new("RGB", (40, 36), (20 * index + cell, 40 + 10 * index, 60 if label == "all" else 90))
+                ImageDraw.Draw(image).ellipse((8, 5, 29, 27), fill=(180, 30 * index, 20 * cell))
+                image.save(path)
+    overrides = {"cnmc_root": str(root), "output_path": str(tmp_path / "outputs"),
+                 "dataset_root": str(tmp_path / "unrelated_bccd")}
+    config_path = tmp_path / "cnmc.local.yaml"
+    config_path.write_text(yaml.safe_dump(overrides), encoding="utf-8")
+    return root, training, config_path, classifier_config(config_path)
