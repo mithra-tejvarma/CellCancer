@@ -141,6 +141,7 @@ Keep the already downloaded C-NMC dataset on its current drive. In the existing 
 cnmc_root: "D:/Datasets/C-NMC_Leukemia"
 ```
 
+<<<<<<< HEAD
 The discovery code accepts `C-NMC_training_data` or `training_data`, a root pointing directly to either directory, or a parent with extra nesting. It verifies `fold_0`, `fold_1`, and `fold_2`, each containing `all` and `hem` directories, case-insensitively. This downloaded layout is supported:
 
 ```text
@@ -154,6 +155,9 @@ D:/Datasets/C-NMC_Leukemia/
 ```
 
 Use `cnmc_root: "D:/Datasets/C-NMC_Leukemia"` for this layout. Notebook 08 checks the verified training folder, and notebook 09 prints its resolved path. The preliminary and final challenge folders are excluded from discovery and training manifests. The primary experiment reserves `fold_2` inside `C-NMC_training_data` for held-out evaluation. If more than one valid training root exists beneath the configured path, select the intended one explicitly. Source BMPs are read in place; only manifests, metadata, figures and checkpoints are saved under `outputs/classifier/`. If you do not have the data yet, download manually from Kaggle or, after setting up Kaggle authentication, run `kaggle datasets download -d avk256/cnmc-leukemia -p D:\Datasets\C-NMC-download`; extract into a **new empty** directory rather than over existing data. Kaggle access may require an account. Training never downloads the dataset automatically.
+=======
+The discovery code accepts a root pointing directly to `training_data`, to its parent, or to a wrapper with extra nesting. It verifies `fold_0`, `fold_1`, and `fold_2`, each containing `all` and `hem` directories, case-insensitively. If more than one such root exists beneath the configured path, select the intended one explicitly. Source BMPs are read in place; only manifests, metadata, figures and checkpoints are saved under `outputs/classifier/`. Preliminary/final challenge testing folders are not mixed with the three labeled training folds. If you do not have the data yet, download manually from Kaggle or, after setting up Kaggle authentication, run `kaggle datasets download -d avk256/cnmc-leukemia -p D:\Datasets\C-NMC-download`; extract into a **new empty** directory rather than over existing data. Kaggle access may require an account. Training never downloads the dataset automatically.
+>>>>>>> f5f3e3e40fcb7dd65b681e3014c49a9f3044dac3
 
 ### Reuse the same CUDA environment
 

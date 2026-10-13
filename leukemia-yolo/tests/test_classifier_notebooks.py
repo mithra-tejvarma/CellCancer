@@ -20,10 +20,14 @@ def test_notebook_structure():
 
 
 def test_nontraining_notebooks_with_synthetic_cnmc(synthetic_cnmc, monkeypatch):
+<<<<<<< HEAD
     dataset_root, training, config_path, cfg = synthetic_cnmc
     training.rename(dataset_root / "C-NMC_training_data")
     for name in ("C-NMC_test_final_phase_data", "C-NMC_test_prelim_phase_data"):
         (dataset_root / name).mkdir()
+=======
+    _, _, config_path, cfg = synthetic_cnmc
+>>>>>>> f5f3e3e40fcb7dd65b681e3014c49a9f3044dac3
     monkeypatch.setenv("LEUKEMIA_YOLO_CONFIG", str(config_path))
     monkeypatch.setenv("LEUKEMIA_YOLO_ROOT", str(ROOT))
     for number in (8, 9, 10, 14):

@@ -34,6 +34,7 @@ def test_corruption_and_bad_filename(synthetic_cnmc):
     (training / "fold_0" / "all" / "not_a_uid.bmp").write_bytes(b"bad")
     with pytest.raises(ValueError, match="integrity failed"):
         inspect_cnmc(cfg)
+<<<<<<< HEAD
 
 
 @pytest.mark.parametrize("directory_name", ["C-NMC_training_data", "c-nmc_TRAINING_DATA"])
@@ -65,3 +66,5 @@ def test_prefixed_training_folder_in_deep_wrappers(synthetic_cnmc):
     wrapped.parent.mkdir(parents=True)
     training.rename(wrapped)
     assert discover_training_data(root)[0] == wrapped.resolve()
+=======
+>>>>>>> f5f3e3e40fcb7dd65b681e3014c49a9f3044dac3
