@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "leukemia-yolo-stage1"
 version = "0.1.0"
-description = "Notebook-based BCCD WBC localization research pipeline"
+description = "Notebook-based BCCD WBC localization and C-NMC cell classification research pipeline"
 requires-python = ">=3.11,<3.12"
 
 [tool.setuptools]

@@ -41,7 +41,7 @@ python -m pip install --no-deps -e .
 if errorlevel 1 exit /b 1
 python -m ipykernel install --user --name leukemia-yolo --display-name "Python (leukemia-yolo)"
 if errorlevel 1 exit /b 1
-python -c "import torch,torchvision,ultralytics,cv2,PIL,numpy,yaml,src; assert torch.version.cuda is not None and torch.cuda.is_available(); print('Imports OK. CUDA GPU:',torch.cuda.get_device_name(0),'free/total GiB:',*[round(v/2**30,2) for v in torch.cuda.mem_get_info(0)])"
+python -c "import torch,torchvision,ultralytics,cv2,PIL,numpy,yaml,sklearn,pytorch_grad_cam,src; assert torch.version.cuda is not None and torch.cuda.is_available(); print('Imports OK. CUDA GPU:',torch.cuda.get_device_name(0),'free/total GiB:',*[round(v/2**30,2) for v in torch.cuda.mem_get_info(0)])"
 if errorlevel 1 exit /b 1
 echo.
 echo READY: Copy config.example.yaml to config.local.yaml, set dataset_root, then run launch_jupyter.bat.

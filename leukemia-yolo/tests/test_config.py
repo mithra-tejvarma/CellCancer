@@ -27,7 +27,7 @@ def test_report_schema_without_experiment(synthetic_bccd):
 def test_notebooks_are_valid_and_have_clean_outputs():
     import nbformat
     files = sorted((project_root() / "notebooks").glob("*.ipynb"))
-    assert len(files) == 8
+    assert len(files) == 15
     for path in files:
         book = nbformat.read(path,as_version=4)
         nbformat.validate(book)
