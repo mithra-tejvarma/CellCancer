@@ -87,6 +87,8 @@ def validate_processed(root: Path, output: Path | None = None) -> dict:
                 image.load()
             labels = read_labels(label_folder / f"{path.stem}.txt")
             expected = manifest["images"][path.stem]
+            if expected.get("source_split") is not None and expected["source_split"] != split:
+                raise ValueError(f"{path.name}: processed split differs from Kaggle source folder")
             if labels != expected["labels"]:
                 raise ValueError(f"{path.name}: labels differ from source-WBC conversion provenance")
             byte_digest, pixel_digest = file_hash(path), pixel_hash(path)

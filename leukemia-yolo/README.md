@@ -1,6 +1,6 @@
 # Explainable Deep Learning Framework for Automated Leukemia Blast Cell Detection in Blood Smears
 
-**Current implementation: Stage 1 — BCCD → YOLOv8n → WBC localization.** The BCCD dataset contains RBC, WBC and platelet detection boxes. It does **not** supply dependable normal-versus-leukemic-blast labels. The model detects leukocytes; it does not diagnose leukemia or classify blasts. EfficientNet-B3, Grad-CAM and blast quantification are future stages and are not implemented here.
+**Current implementation: Stage 1 — Kaggle BCCD → YOLOv8n → WBC localization.** This project targets the [Orvile Kaggle BCCD archive](https://www.kaggle.com/datasets/orvile/bccd-blood-cell-count-and-detection-dataset), which already contains `train/`, `val/`, and `test/` folders with one JSON annotation per image. The original Pascal VOC release remains supported for compatibility. BCCD contains RBC, WBC and platelet detection boxes, but no dependable normal-versus-leukemic-blast labels. The model detects leukocytes; it does not diagnose leukemia or classify blasts. EfficientNet-B3, Grad-CAM and blast quantification are future stages and are not implemented here.
 
 ## Windows ASUS setup
 
@@ -25,14 +25,24 @@
 
    The second setup run installs remaining dependencies using constraints that pin the installed `torch` and `torchvision` versions, installs this repository as an editable package, registers `python -m ipykernel install --user --name leukemia-yolo --display-name "Python (leukemia-yolo)"`, and rechecks imports and CUDA. If dependency resolution conflicts, stop and inspect the conflict instead of replacing the CUDA build.
 
-4. Copy the template and set **one** source path. The root may be the direct `BCCD/` directory or its parent `BCCD_Dataset/`:
+4. Download and extract the [Kaggle BCCD archive](https://www.kaggle.com/datasets/orvile/bccd-blood-cell-count-and-detection-dataset) outside this repository. Point the config at the extracted directory containing `meta.json` and the three split folders:
+
+   ```text
+   D:/Datasets/BCCD_Kaggle/
+       meta.json
+       train/img/*.jpeg       train/ann/*.jpeg.json
+       val/img/*.jpeg         val/ann/*.jpeg.json
+       test/img/*.jpeg        test/ann/*.jpeg.json
+   ```
+
+   Copy the template and set **one** source path:
 
    ```bat
    copy config.example.yaml config.local.yaml
    notepad config.local.yaml
    ```
 
-   Set `dataset_root: "D:/Datasets/BCCD_Dataset"` to your actual location. `config.local.yaml` is ignored by Git. Relative processed and output paths resolve against this project root.
+   Set `dataset_root: "D:/Datasets/BCCD_Kaggle"` to your actual extracted directory. `config.local.yaml` is ignored by Git. Relative processed and output paths resolve against this project root. An extra one-level wrapper around the split folders is detected automatically.
 
 5. Launch JupyterLab:
 
@@ -47,15 +57,17 @@
 | Notebook | Action | Key output |
 |---|---|---|
 | `00_Environment_Check` | Verify Windows, packages, RAM, disk, driver, CUDA, VRAM, kernel | `outputs/environment_report.json` |
-| `01_BCCD_Dataset_Inspection` | Audit real images, VOC XML and source split files | `outputs/dataset_inspection.json` |
-| `02_BCCD_Preprocessing` | Convert WBC only and freeze disjoint splits | `data/processed/BCCD_YOLO/data.yaml` |
+| `01_BCCD_Dataset_Inspection` | Audit all three Kaggle image/JSON folders and source boxes | `outputs/dataset_inspection.json` |
+| `02_BCCD_Preprocessing` | Convert JSON WBC boxes and preserve Kaggle splits | `data/processed/BCCD_YOLO/data.yaml` |
 | `03_Dataset_Visualization` | Verify nine examples and box distributions | `outputs/figures/processed_wbc_examples.png` |
 | `04_YOLOv8_Training` | One CUDA smoke epoch, then full training | `outputs/checkpoints/<run>/weights/best.pt` |
 | `05_Model_Evaluation` | Evaluate best.pt on held-out **test** only | `outputs/paper_results/detection_metrics.json` |
 | `06_WBC_Detection` | Predict test/custom images; save optional crops | `outputs/predictions/`, `outputs/wbc_crops/` |
 | `07_Conference_Results` | Compile actual evidence for a paper | `outputs/paper_results/experiment_summary.md` |
 
-The notebook files are committed with empty cell outputs. Running them locally creates figures and reports under ignored `outputs/`. Source and processed images, model weights, image caches, Conda environments and local config are ignored by Git. Do not commit downloaded BCCD content or checkpoint files.
+The Kaggle archive contains **205 train, 87 validation, and 72 test images**. Their original allocation is kept exactly. The notebook files are committed with empty cell outputs. Running them locally creates figures and reports under ignored `outputs/`. Source and processed images, model weights, image caches, Conda environments and local config are ignored by Git. Do not commit downloaded BCCD content or checkpoint files.
+
+The current Kaggle archive has two zero-area **RBC** rectangles, one in train and one in val. Inspection reports them and excludes those invalid non-target boxes while keeping both images. All 372 WBC boxes remain valid. An invalid WBC box, missing JSON file, or cross-split duplicate image stops preprocessing. The original VOC layout is still recognized, but its XML files and split text files are not required for this Kaggle release.
 
 ## Training from a terminal
 
@@ -94,7 +106,7 @@ Notebook 05 invokes Ultralytics `model.val(..., split="test", plots=True)` only 
 
 - **CUDA unavailable / `torch.version.cuda is None`:** verify `nvidia-smi`, select a compatible CUDA wheel from the official PyTorch page, rerun `setup_conda.bat`, and select the registered Jupyter kernel. Do not proceed with GPU training until notebook 00 passes CUDA checks.
 - **Wrong Python executable / base environment:** run `conda activate leukemia-yolo`, rerun kernel registration, and select **Python (leukemia-yolo)**. The notebook displays `sys.executable`.
-- **Missing BCCD files:** check `dataset_root`, `JPEGImages/`, `Annotations/`, `ImageSets/Main/`. Notebook 01 reports missing XML, unreadable images and invalid boxes. The split directory can be absent; a deterministic 70/15/15 fallback is then used.
+- **Missing Kaggle files:** `dataset_root` must resolve to the folder containing `meta.json`, `train/img`, `train/ann`, `val/img`, `val/ann`, `test/img`, and `test/ann`. JSON names match image names plus `.json`, for example `BloodImage_00007.jpeg` → `BloodImage_00007.jpeg.json`. Notebook 01 reports missing/unreadable files and invalid WBC boxes. Kaggle splits are never reshuffled; if split integrity fails, repair the source download.
 - **Existing processed dataset differs from source:** use a new `processed_data_path` in local config. The project intentionally does not overwrite the old dataset or its split manifest.
 - **Ultralytics download fails:** verify network access or download the official `yolov8n.pt` detection checkpoint to this project root. Never substitute a `-cls` checkpoint.
 - **Windows DataLoader error:** set `workers: 0` and start a new smoke run. Training itself runs as a child process.
@@ -113,6 +125,6 @@ python scripts/evaluate_yolo.py --help
 python scripts/predict_yolo.py --help
 ```
 
-The tests generate synthetic BCCD-like JPEG/XML fixtures, execute selected nontraining notebooks, and check conversion, split leakage, report schema and notebook validity. They do **not** establish real BCCD detection accuracy. On the ASUS laptop, verify the real dataset in notebooks 01–03, perform the short CUDA smoke training and checkpoint load in notebook 04, then full training, held-out test evaluation and prediction smoke test. Report only metrics produced by that run.
+The tests generate both exact-layout Kaggle JPEG/JSON fixtures and original VOC JPEG/XML fixtures, execute selected nontraining notebooks, and check conversion, split preservation, leakage, report schema and notebook validity. They do **not** establish real BCCD detection accuracy. On the ASUS laptop, verify the real dataset in notebooks 01–03, perform the short CUDA smoke training and checkpoint load in notebook 04, then full training, held-out test evaluation and prediction smoke test. Report only metrics produced by that run.
 
 Official resources: [BCCD source](https://github.com/Shenggan/BCCD_Dataset), [Ultralytics training](https://docs.ultralytics.com/modes/train/), [PyTorch CUDA installation](https://pytorch.org/get-started/locally/).

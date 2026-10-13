@@ -51,7 +51,9 @@ def build_summary(config: dict) -> dict:
     def check_value(name):
         return next((r["value"] for r in checks if r["check"] == name), None)
     values = {
-        "dataset_description": "BCCD blood-smear microscopy images with Pascal VOC RBC, WBC and platelet boxes",
+        "dataset_description": ("Kaggle BCCD blood-smear images with pre-defined train/val/test splits "
+                                "and per-image JSON rectangle annotations" if prep and prep.get("source_format") == "kaggle_json"
+                                else "BCCD blood-smear microscopy images with Pascal VOC RBC, WBC and platelet boxes"),
         "source_images": available(source.get("total_images") if source else None),
         "source_wbc_annotations": available(source.get("total_wbc_boxes") if source else None),
         "split_train": available(prep.get("splits", {}).get("train") if prep else None),

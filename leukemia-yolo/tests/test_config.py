@@ -53,10 +53,10 @@ def test_conda_and_yaml_contract():
     assert "torch.version.cuda" in setup
 
 
-def test_nontraining_notebooks_with_synthetic_data(synthetic_bccd,monkeypatch):
+def test_nontraining_notebooks_with_synthetic_data(synthetic_kaggle,monkeypatch):
     import nbformat
     from nbclient import NotebookClient
-    _, path, config = synthetic_bccd
+    _, path, config = synthetic_kaggle
     monkeypatch.setenv("LEUKEMIA_YOLO_CONFIG", str(path))
     monkeypatch.setenv("LEUKEMIA_YOLO_ROOT", str(project_root()))
     for name in ("00_Environment_Check", "01_BCCD_Dataset_Inspection", "02_BCCD_Preprocessing",

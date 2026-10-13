@@ -1,5 +1,6 @@
 """Regenerate the eight clean, executable Jupyter notebooks."""
 from pathlib import Path
+import hashlib
 import nbformat as nbf
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,7 +33,14 @@ def notebook(name, title, purpose, inputs, outputs, steps, next_step):
     cells.append(nbf.v4.new_markdown_cell(f"## Next notebook\n\n{next_step}"))
     book = nbf.v4.new_notebook(cells=cells, metadata={"kernelspec": {"display_name": "Python (leukemia-yolo)",
         "language": "python", "name": "leukemia-yolo"}, "language_info": {"name": "python"}})
-    nbf.write(book, DEST / name)
+    target = DEST / name
+    old = nbf.read(target, as_version=4) if target.exists() else None
+    for index, cell in enumerate(book.cells):
+        if old and index < len(old.cells) and old.cells[index].cell_type == cell.cell_type and old.cells[index].source == cell.source:
+            cell.id = old.cells[index].id
+        else:
+            cell.id = hashlib.sha1(f"{name}:{index}:{cell.source}".encode("utf-8")).hexdigest()[:8]
+    nbf.write(book, target)
 
 
 notebook("00_Environment_Check.ipynb", "00 — Environment and CUDA check",
@@ -59,49 +67,55 @@ print("PASS — environment report saved" if report["cuda_ready"] and report["ke
  "Open **01_BCCD_Dataset_Inspection.ipynb** after setting the dataset path in `config.local.yaml`.")
 
 notebook("01_BCCD_Dataset_Inspection.ipynb", "01 — BCCD source inspection",
-         "Audit real microscopy files, VOC boxes, source classes and split-file contents.",
-         "Configured BCCD root with `JPEGImages/`, `Annotations/`, `ImageSets/Main/` (direct or nested `BCCD/`).",
+         "Audit the real Kaggle train/val/test image folders, JSON rectangles and source class counts.",
+         "Extracted Kaggle BCCD root with `train/`, `val/`, `test/`; each has `img/` and `ann/`, plus `meta.json` at the root. Original VOC is also recognized.",
          "`outputs/dataset_inspection.json`, original gallery and class chart.", [
- ("2. Inspect source files", "Image sizes come from image pixels, not XML paths or stale XML dimensions. A standard release is near 364 images; variations are allowed.",
+ ("2. Inspect source files", "Image sizes come from actual pixels. The Kaggle archive has 205 train, 87 val and 72 test images; the notebook checks the files actually supplied.",
   '''from src.bccd import inspect_dataset, locate_bccd
 from IPython.display import display
 import pandas as pd
 source_root = locate_bccd(cfg["dataset_root"])
 print("Source:", source_root)
-print("ImageSets/Main exists:", (source_root / "ImageSets" / "Main").is_dir())
 inspection = inspect_dataset(cfg, strict=False)
+print("Detected format:", inspection["source_format"])
 display(pd.DataFrame([{"measure": k, "value": inspection[k]} for k in
-    ("total_images", "total_xml", "total_wbc_boxes", "images_with_wbc", "images_without_wbc",
-     "missing_xml", "unreadable_images", "invalid_boxes_or_xml")]))
-display(pd.DataFrame(inspection["class_distribution"].items(), columns=["class", "boxes"]))
-display(pd.DataFrame([{"file": k, "lines": len(v), "first_entries": v[:5]} for k,v in inspection["source_split_files"].items()]))'''),
- ("3. View real images and XML", "VOC boxes are color coded: RBC red, WBC green, platelets blue. XML examples are read from the configured dataset.",
+    ("total_images", "total_annotations", "total_json", "total_xml", "total_wbc_boxes",
+     "images_with_wbc", "images_without_wbc", "missing_annotations", "unreadable_images",
+     "invalid_annotations", "orphan_annotations")]))
+display(pd.DataFrame([{"class": name, "source_objects": inspection["raw_class_distribution"][name],
+                       "valid_boxes": inspection["class_distribution"][name]}
+                      for name in ("RBC", "WBC", "Platelets")]))
+print("Rejected invalid non-WBC boxes:", inspection["rejected_non_wbc_boxes"])
+display(pd.DataFrame([{"source_split": k, "images": len(v), "first_image_ids": v[:5]}
+                      for k,v in inspection["source_split_files"].items() if k in ("train", "val", "test")]))'''),
+ ("3. View real images and JSON", "Source boxes are color coded: RBC red, WBC green, platelets blue. The annotation example comes from the configured dataset.",
   '''from src.visualization import source_gallery, class_chart
 if inspection["records"]:
     display(source_gallery(inspection["records"], out / "figures" / "original_bccd_examples.png", count=9))
-    display(class_chart(inspection["class_distribution"], out / "figures" / "source_class_counts.png"))
-    xml_example = Path(inspection["records"][0]["xml"])
-    print("XML example:", xml_example.name)
-    print(xml_example.read_text(encoding="utf-8")[:1600])
-    display(pd.DataFrame([{"image": r["id"], "pixels": f"{r['width']}x{r['height']}",
-                           "xml_size": r["xml_size"], "clipped_boxes": len(r["clipping"])}
+    display(class_chart(inspection["raw_class_distribution"], out / "figures" / "source_class_counts.png"))
+    annotation_example = Path(inspection["records"][0]["annotation"])
+    print("Annotation example:", annotation_example)
+    print(annotation_example.read_text(encoding="utf-8")[:1800])
+    display(pd.DataFrame([{"source_split": r["source_split"], "image": r["id"],
+                           "pixels": f"{r['width']}x{r['height']}",
+                           "annotation_size": r["annotation_size"], "clipped_boxes": len(r["clipping"])}
                           for r in inspection["records"][:10]]))'''),
  ("4. Integrity gate", "Stop here if an image, annotation or bounding box is missing or unreadable.",
   '''assert inspection["ready"], "FAIL — source integrity errors; inspect outputs/dataset_inspection.json"
 print("PASS — source inspection complete. Next: notebook 02.")''')],
  "Open **02_BCCD_Preprocessing.ipynb**.")
 
-notebook("02_BCCD_Preprocessing.ipynb", "02 — VOC to YOLO WBC preprocessing",
+notebook("02_BCCD_Preprocessing.ipynb", "02 — Kaggle JSON to YOLO WBC preprocessing",
          "Create an idempotent, single-class WBC training dataset with frozen, leakage-free splits.",
          "Successful notebook 01; configured BCCD source.",
          "`data/processed/BCCD_YOLO/`, `outputs/preprocessing_report.json`, split manifests and before/after figure.", [
- ("2. Convert and preserve splits", "Only WBC objects become class 0. Coordinates are clipped to actual image bounds and transformed with continuous-edge VOC formulas. Source files are never changed.",
+ ("2. Convert and preserve splits", "Only WBC objects become class 0. Kaggle `points.exterior` rectangle corners are normalized using actual image dimensions. The 205/87/72 source folder allocation is preserved exactly. Source files are never changed.",
   '''from src.preprocessing import preprocess, conversion_table
 report = preprocess(cfg)
 display(report)
 print("Split policy:", report["split_reason"])
 print("Clipped boxes:", len(report["clipped_boxes"]))'''),
- ("3. Inspect round-trip and before/after", "The table shows source VOC coordinates, normalized YOLO values and reversible pixel error.",
+ ("3. Inspect round-trip and before/after", "The table shows source JSON rectangle corners, normalized YOLO values and reversible pixel error.",
   '''from src.bccd import inspect_dataset
 from src.visualization import before_after
 records = inspect_dataset(cfg)["records"]

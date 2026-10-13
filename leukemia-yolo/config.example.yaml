@@ -1,5 +1,6 @@
-# Copy to config.local.yaml; set dataset_root once.
-dataset_root: "D:/Datasets/BCCD_Dataset"
+# Copy to config.local.yaml; point to the extracted Kaggle BCCD folder.
+# Expected: train/img, train/ann, val/img, val/ann, test/img, test/ann, meta.json.
+dataset_root: "D:/Datasets/BCCD_Kaggle"
 processed_data_path: data/processed/BCCD_YOLO
 output_path: outputs
 model: yolov8n.pt

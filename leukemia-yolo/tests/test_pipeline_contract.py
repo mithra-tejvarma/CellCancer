@@ -46,11 +46,8 @@ class FakeYOLO:
         return [SimpleNamespace(boxes=[box], plot=lambda: np.zeros((80,100,3),dtype=np.uint8))]
 
 
-def test_mocked_train_test_predict_provenance(synthetic_bccd,monkeypatch):
-    root, _, config = synthetic_bccd
-    for split, indexes in (("train",range(4)),("val",range(4,6)),("test",range(6,12))):
-        (root / "ImageSets/Main" / f"{split}.txt").write_text(
-            "\n".join(f"BloodImage_{i:05d}" for i in indexes) + "\n",encoding="utf-8")
+def test_mocked_train_test_predict_provenance(synthetic_kaggle,monkeypatch):
+    _, _, config = synthetic_kaggle
     preprocess(config)
     monkeypatch.setitem(sys.modules,"ultralytics",SimpleNamespace(YOLO=FakeYOLO))
     monkeypatch.setattr("src.training.require_cuda",lambda device: {"gpu_name":"synthetic GPU", "device":device})

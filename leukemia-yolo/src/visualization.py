@@ -29,7 +29,7 @@ def source_gallery(records: list[dict], output: Path, count: int = 9):
             x1,y1,x2,y2 = obj["box"]
             ax.add_patch(Rectangle((x1,y1),x2-x1,y2-y1,fill=False,edgecolor=COLORS[obj["class"]],linewidth=1.7))
         ax.set_title(record["id"], fontsize=10)
-    fig.suptitle("Original BCCD VOC boxes: RBC red, WBC green, platelets blue", fontsize=15)
+    fig.suptitle("Original BCCD boxes: RBC red, WBC green, platelets blue", fontsize=15)
     fig.tight_layout()
     output.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output, dpi=200, bbox_inches="tight")
@@ -103,7 +103,7 @@ def before_after(record: dict, processed_root: Path, output: Path):
     for _,x,y,w,h in read_labels(processed_root / "labels" / image_path.parent.name / f"{record['id']}.txt"):
         x1,y1,x2,y2 = denormalize_box((x,y,w,h),width,height)
         axes[1].add_patch(Rectangle((x1,y1),x2-x1,y2-y1,fill=False,edgecolor=COLORS["WBC"],linewidth=2))
-    axes[0].set_title("Source VOC: all blood-cell classes")
+    axes[0].set_title("Source annotation: all blood-cell classes")
     axes[1].set_title("YOLO: WBC only")
     fig.tight_layout()
     output.parent.mkdir(parents=True, exist_ok=True)

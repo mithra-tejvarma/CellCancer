@@ -1,4 +1,4 @@
-"""Transactional, deterministic Pascal VOC to single-class YOLO conversion."""
+"""Transactional BCCD JSON/VOC to single-class YOLO conversion."""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -14,7 +14,7 @@ from .bccd import file_hash, inspect_dataset, pixel_hash
 from .config import ensure_outputs, read_json, run_id, write_json
 from .validation import SPLITS, validate_processed, validate_split_sets
 
-CONVERSION_VERSION = 1
+CONVERSION_VERSION = 2
 
 
 def normalize_box(box, width, height) -> list[float]:
@@ -49,7 +49,7 @@ def wbc_labels(record: dict) -> list[list[float]]:
     return rows
 
 
-def choose_splits(records: list[dict], source: dict, seed: int) -> tuple[dict, str]:
+def choose_splits(records: list[dict], source: dict, seed: int, *, require_source: bool = False) -> tuple[dict, str]:
     ids = {r["id"] for r in records}
     positive_ids = {r["id"] for r in records if any(o["class"] == "WBC" for o in r["objects"])}
     groups = defaultdict(list)
@@ -68,8 +68,13 @@ def choose_splits(records: list[dict], source: dict, seed: int) -> tuple[dict, s
         membership = {identifier: s for s in SPLITS for identifier in splits[s]}
         if any(len({membership[i] for i in group}) > 1 for group in groups.values()):
             raise ValueError("Official files contain identical image content across splits")
-        return splits, "Preserved distinct complete official train/val/test files; trainval ignored."
+        if require_source and any(r["source_split"] != name for name in SPLITS for r in records if r["id"] in splits[name]):
+            raise ValueError("Kaggle folder membership disagrees with its source split")
+        return splits, ("Preserved Kaggle train/val/test directory membership exactly."
+                        if require_source else "Preserved distinct complete official train/val/test files; trainval ignored.")
     except ValueError as exc:
+        if require_source:
+            raise ValueError(f"Kaggle pre-defined splits are invalid; source files must be fixed, not reshuffled: {exc}") from exc
         reason = str(exc)
     if len(groups) < 3:
         raise ValueError("Need at least three distinct image-content groups for disjoint splits")
@@ -104,9 +109,10 @@ def preprocess(config: dict) -> dict:
     for record in records:
         record["sha256"] = file_hash(Path(record["image"]))
         record["pixel_sha256"] = pixel_hash(Path(record["image"]))
-        record["xml_sha256"] = file_hash(Path(record["xml"]))
+        record["annotation_sha256"] = file_hash(Path(record["annotation"]))
     signature = {"version": CONVERSION_VERSION, "seed": config["seed"],
-                 "files": [{k: r[k] for k in ("id", "sha256", "xml_sha256")} for r in records],
+                 "source_format": inspection["source_format"],
+                 "files": [{k: r[k] for k in ("id", "sha256", "annotation_sha256", "source_split")} for r in records],
                  "source_splits": inspection["source_split_files"]}
     fingerprint = hashlib.sha256(json.dumps(signature, sort_keys=True).encode()).hexdigest()
     target = config["processed_data_path"]
@@ -128,9 +134,11 @@ def preprocess(config: dict) -> dict:
             write_json(output / "splits" / "manifest.json", manifest)
         write_json(output / "preprocessing_report.json", report)
         return report
-    splits, explanation = choose_splits(records, inspection["source_split_files"], config["seed"])
+    splits, explanation = choose_splits(records, inspection["source_split_files"], config["seed"],
+                                         require_source=inspection["source_format"] == "kaggle_json")
     lookup = {r["id"]: r for r in records}
-    manifest_images = {r["id"]: {"filename": Path(r["image"]).name, "sha256": r["sha256"],
+    manifest_images = {r["id"]: {"filename": Path(r["image"]).name, "source_split": r["source_split"],
+                               "annotation_format": r["annotation_format"], "sha256": r["sha256"],
                                "pixel_sha256": r["pixel_sha256"], "labels": wbc_labels(r)} for r in records}
     for name in SPLITS:
         if not any(manifest_images[i]["labels"] for i in splits[name]):
@@ -149,11 +157,12 @@ def preprocess(config: dict) -> dict:
             (stage / "labels" / split / f"{identifier}.txt").write_text(content, encoding="utf-8")
     data = {"path": str(stage.resolve()), **{s: f"images/{s}" for s in SPLITS}, "names": {0: "WBC"}}
     (stage / "data.yaml").write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
-    report = {"fingerprint": fingerprint, "seed": config["seed"], "split_reason": explanation,
+    report = {"fingerprint": fingerprint, "seed": config["seed"], "source_format": inspection["source_format"],
+              "split_reason": explanation,
               "splits": {s: len(v) for s, v in splits.items()}, "total_wbc_boxes": inspection["total_wbc_boxes"],
               "source_root": inspection["source_root"],
               "clipped_boxes": inspection["clipped_boxes"], "reused": False,
-              "coordinate_policy": "No implicit VOC minus-one adjustment. Clip to [0,width] / [0,height]; use requested continuous-edge formulas.",
+              "coordinate_policy": "Use source rectangle corner pixels and actual image dimensions. Clip to [0,width] / [0,height]; no implicit one-pixel adjustment.",
               "processed_data_path": str(target)}
     manifest = {"fingerprint": fingerprint, "splits": splits, "images": manifest_images, "report": report}
     write_json(stage / "manifest.json", manifest)
@@ -176,7 +185,8 @@ def conversion_table(record: dict):
         if obj["class"] == "WBC":
             values = normalize_box(obj["box"], record["width"], record["height"])
             restored = denormalize_box(values, record["width"], record["height"])
-            rows.append({"image": record["id"], "source_VOC": obj["source_box"], "clipped_VOC": obj["box"],
+            rows.append({"image": record["id"], "source_box_xyxy": obj["source_box"],
+                         "clipped_box_xyxy": obj["box"],
                          "class_id": 0, "x_center": values[0], "y_center": values[1],
                          "width": values[2], "height": values[3],
                          "roundtrip_max_error_px": max(abs(a-b) for a,b in zip(restored, obj["box"]))})
