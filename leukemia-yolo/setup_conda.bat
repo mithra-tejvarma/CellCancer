@@ -53,7 +53,8 @@ echo STOP: A working CUDA-enabled PyTorch and torchvision pair is not installed 
 echo 1. Run nvidia-smi and confirm the NVIDIA driver and GPU are visible.
 echo 2. Visit https://pytorch.org/get-started/locally/
 echo 3. Select Windows / Pip / Python / CUDA version supported by your driver.
-echo 4. Run EXACTLY the torch and torchvision install command shown there in this active leukemia-yolo prompt.
-echo 5. Verify: python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
-echo 6. Rerun setup_conda.bat. No CPU-only torch installation was attempted.
+echo 4. After this script exits, run: conda activate leukemia-yolo
+echo 5. Run EXACTLY the torch and torchvision install command shown by the selector in that environment.
+echo 6. Verify: python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
+echo 7. Rerun setup_conda.bat. No CPU-only torch installation was attempted.
 exit /b 2

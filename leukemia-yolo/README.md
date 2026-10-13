@@ -13,9 +13,12 @@
    setup_conda.bat
    ```
 
-3. The setup script creates `leukemia-yolo` from `environment.yml`, activates it and checks for a compatible CUDA-enabled PyTorch/torchvision pair. If missing, it stops. Use the **official [PyTorch installation selector](https://pytorch.org/get-started/locally/)** with Windows / Pip / Python / a CUDA wheel supported by the installed NVIDIA driver. Run its exact command in the active `leukemia-yolo` prompt. No CUDA Toolkit version is guessed by this project. First check the driver with `nvidia-smi`; then verify the PyTorch install:
+3. The setup script creates `leukemia-yolo` from `environment.yml`, activates it for its own checks, and checks for a compatible CUDA-enabled PyTorch/torchvision pair. If missing, it stops. **Activation inside the batch file ends when the file exits**, so first run `conda activate leukemia-yolo` yourself. Use the **official [PyTorch installation selector](https://pytorch.org/get-started/locally/)** with Windows / Pip / Python / a CUDA wheel supported by the installed NVIDIA driver. Run its exact install command in that activated environment. No CUDA Toolkit version is guessed by this project. Check the driver, then verify the PyTorch install:
 
    ```bat
+   nvidia-smi
+   conda activate leukemia-yolo
+   REM Run the exact pip command shown by the official PyTorch selector here.
    python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NO CUDA')"
    setup_conda.bat
    ```
