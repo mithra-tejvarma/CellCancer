@@ -60,7 +60,12 @@ else: add("NVIDIA GPU", "CUDA unavailable; GPU training blocked", "ERROR")
 for package in ("Pillow", "scikit-learn", "grad-cam", "PyYAML"):
     try: add(package, importlib.metadata.version(package), "PASS")
     except importlib.metadata.PackageNotFoundError: add(package, "missing", "ERROR")
-add("C-NMC source path", cfg["cnmc_root"], "PASS" if cfg["cnmc_root"].is_dir() else "ERROR")
+from src.cnmc_data import discover_training_data
+try:
+    training_root, _ = discover_training_data(cfg["cnmc_root"])
+    add("C-NMC verified training directory", training_root, "PASS")
+except (FileNotFoundError, ValueError) as exc:
+    add("C-NMC verified training directory", exc, "ERROR")
 add("Existing YOLO source", cfg["root"] / "src" / "training.py", "PASS" if (cfg["root"] / "src" / "training.py").is_file() else "ERROR")
 try:
     driver = subprocess.run(["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"], capture_output=True, text=True, timeout=10)
@@ -73,11 +78,12 @@ print("PASS — CUDA and report ready" if torch.cuda.is_available() else "ERROR 
      "Open **09_CNMC_Dataset_Inspection.ipynb** after setting the real C-NMC path.")
 
 book("09_CNMC_Dataset_Inspection.ipynb", "09 — C-NMC source inspection", "Discover labeled training folds, decode cells, audit counts and patient IDs.",
-     "C-NMC `training_data/fold_0..2/{all,hem}` at cnmc_root or beneath it.",
+     "C-NMC `C-NMC_training_data/fold_0..2/{all,hem}` beneath cnmc_root; `training_data` is also supported. Preliminary/final challenge folders are excluded.",
      "cnmc_manifest.csv, dataset_inspection.json, sample and class-distribution figures.", [
  ("2. Verify source and metadata", "The official 10,661-image count is a comparison, not an assumed local result.", '''from src.cnmc_data import inspect_cnmc
 import pandas as pd
 frame, report = inspect_cnmc(cfg)
+print("Verified training folder:", report["training_data"])
 display(pd.DataFrame([{"metric": key, "value": str(value)} for key, value in report.items() if key != "errors"]))
 display(frame.groupby(["fold", "class_name"]).size().rename("cells").reset_index())
 display(frame.groupby(["subject_id", "class_name"]).size().rename("cells").reset_index().head(20))

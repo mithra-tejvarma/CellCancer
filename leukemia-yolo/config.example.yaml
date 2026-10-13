@@ -16,7 +16,8 @@ cache: auto
 confidence: 0.25
 iou: 0.7
 crop_wbcs: true
-# Stage 2: point this at the existing C-NMC archive (or training_data itself).
+# Stage 2: parent containing C-NMC_training_data, or the training directory itself.
+# C-NMC_test_prelim_phase_data and C-NMC_test_final_phase_data are excluded.
 cnmc_root: "D:/Datasets/C-NMC_Leukemia"
 classifier_image_size: 224
 classifier_batch_size: 8

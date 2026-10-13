@@ -15,6 +15,10 @@ from .config import write_json
 IMAGE_EXTENSIONS = {".bmp", ".jpg", ".jpeg", ".png"}
 PATTERN = re.compile(r"^UID_(H?\d+)_(\d+)_(\d+)_(all|hem)$", re.IGNORECASE)
 FOLDS = ("fold_0", "fold_1", "fold_2")
+TRAINING_DIRECTORY_NAMES = {"training_data", "c-nmc_training_data"}
+CHALLENGE_TEST_DIRECTORY_NAMES = {
+    "testing_data", "c-nmc_test_final_phase_data", "c-nmc_test_prelim_phase_data",
+}
 
 
 def _child(parent: Path, name: str) -> Path | None:
@@ -43,10 +47,31 @@ def discover_training_data(root: Path) -> tuple[Path, dict]:
     root = Path(root).expanduser().resolve()
     if not root.is_dir():
         raise FileNotFoundError(f"C-NMC path does not exist: {root}. Set cnmc_root in config.local.yaml.")
-    candidates = [root, *(p for p in root.rglob("*") if p.is_dir() and p.name.casefold() == "training_data")]
+    if any(part.casefold() in CHALLENGE_TEST_DIRECTORY_NAMES for part in root.parts):
+        raise ValueError("cnmc_root points to challenge test data. Select the parent dataset or C-NMC_training_data.")
+    candidates = [root]
+    pending, visited = [root], set()
+    while pending:
+        parent = pending.pop()
+        resolved = parent.resolve()
+        if resolved in visited:
+            continue
+        visited.add(resolved)
+        for child in parent.iterdir():
+            if not child.is_dir() or child.is_symlink():
+                continue
+            name = child.name.casefold()
+            if name in CHALLENGE_TEST_DIRECTORY_NAMES or name in FOLDS:
+                continue
+            if name in TRAINING_DIRECTORY_NAMES:
+                candidates.append(child)
+            pending.append(child)
     valid = {p.resolve(): layout for p in candidates if (layout := fold_layout(p)) is not None}
     if not valid:
-        raise FileNotFoundError(f"No C-NMC training_data with fold_0/1/2 and all/hem under {root}; check cnmc_root.")
+        raise FileNotFoundError(
+            f"No verified C-NMC training directory under {root}. Expected C-NMC_training_data "
+            "or training_data containing fold_0, fold_1, fold_2, each with all and hem. "
+            "Set cnmc_root in config.local.yaml to the dataset parent or the training directory.")
     if len(valid) != 1:
         raise ValueError(f"Multiple valid C-NMC training roots under {root}: {list(valid)}. Set cnmc_root to one.")
     return next(iter(valid.items()))
