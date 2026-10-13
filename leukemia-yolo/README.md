@@ -205,3 +205,27 @@ Read `training_history.csv` for loss, validation accuracy, validation macro-F1, 
 If `cnmc_root` is wrong, notebook 09 names the missing verified fold layout. If a UID filename is unsupported, it stops instead of inventing a subject ID. If split files or source hashes change, preserve the old run for reproducibility and resolve the discrepancy before creating a new experiment. If pretrained weights are unavailable offline, place the official Torchvision weights in the standard PyTorch cache before training; checkpoint inference and evaluation never download weights. CUDA failures in notebook 08 must be fixed before running notebook 11. Grad-CAM regions are model-influential pixels, not proof of a cell feature or clinical diagnosis.
 
 Official resources: [BCCD source](https://github.com/Shenggan/BCCD_Dataset), [Ultralytics training](https://docs.ultralytics.com/modes/train/), [PyTorch CUDA installation](https://pytorch.org/get-started/locally/).
+# Current audit and full-backbone experiment
+
+The saved classifier result in `outputs/classifier/paper_results` is the **EfficientNet-B3 baseline**. Its old training script's `full` mode trained the head and final two feature blocks; it did not unfreeze the entire backbone. The separate `scripts/full_finetune.py` experiment uses `--mode full` to train every feature block. It initializes from the verified baseline best checkpoint and writes a unique run under `outputs/classifier/full_finetune/`. The saved C-NMC subject manifests remain authoritative.
+
+Use the existing `leukemia-yolo` Conda interpreter. From the project root:
+
+```powershell
+python scripts/audit_project.py
+python scripts/full_finetune.py --smoke --batch-size 4 --accumulation 2 --workers 2
+python scripts/full_finetune.py --mode full --epochs 20 --batch-size 4 --accumulation 2 --workers 2 --lr 0.00003
+python scripts/full_finetune.py --resume outputs/classifier/full_finetune/<run_id>/last_checkpoint.pth --mode full --epochs 20 --batch-size 4 --accumulation 2 --workers 2 --lr 0.00003
+```
+
+The smoke mode measures two batches and does not evaluate the test set. The full run checks validation after each epoch, chooses the best checkpoint by validation macro F1, selects the blast threshold on validation predictions, and then evaluates the saved best checkpoint on fold_2 once. `--max-minutes` stops after a completed epoch and leaves a resumable `last_checkpoint.pth`. On CUDA memory exhaustion, start a new run with `--batch-size 2 --accumulation 4`; changing batch settings during exact resume is disallowed. A partial run must be named `--mode partial`.
+
+The old fold_2 test set has already been examined, so future fold_2 results are not fully independent. A fresh subject-disjoint set of leukemia-labeled whole smears is needed for an unbiased end-to-end estimate. BCCD only evaluates WBC localization; C-NMC only evaluates cropped-cell classification.
+
+The integrated demo can be run locally after installing `requirements-no-torch.txt` into the existing environment:
+
+```powershell
+python -m uvicorn src.dashboard:app --host 127.0.0.1 --port 8000 --workers 1
+```
+
+The dashboard currently loads the preserved baseline classifier checkpoint. Results are saved under `outputs/inference/<run_id>`; uploaded source bytes are not copied there. Use `DELETE /runs/<run_id>` to remove one result directory. The displayed model scores are uncalibrated, and the image-level blast fraction uses accepted classified WBCs only.

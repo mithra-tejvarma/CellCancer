@@ -19,13 +19,16 @@ def build_model(pretrained: bool = True) -> nn.Module:
 
 
 def set_trainable(model: nn.Module, phase: str) -> None:
-    if phase not in ("head", "fine"):
-        raise ValueError("phase must be head or fine")
+    if phase not in ("head", "fine", "partial", "full"):
+        raise ValueError("phase must be head, fine, partial or full")
     for param in model.features.parameters():
         param.requires_grad = False
     for param in model.classifier.parameters():
         param.requires_grad = True
-    if phase == "fine":
+    if phase == "full":
+        for param in model.features.parameters():
+            param.requires_grad = True
+    elif phase in ("fine", "partial"):
         for block in model.features[-2:]:
             for param in block.parameters():
                 param.requires_grad = True
