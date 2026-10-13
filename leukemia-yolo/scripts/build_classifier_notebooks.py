@@ -93,23 +93,26 @@ from IPython.display import Image as DisplayImage, display
 sample_figures(frame, out / "figures")
 display(DisplayImage(filename=str(out / "figures" / "cnmc_samples.png")))
 display(DisplayImage(filename=str(out / "figures" / "class_distribution.png")))'''),
- ("4. Integrity summary", "Invalid subject names, damaged images, or duplicate image content block splitting.", '''assert report["ready"] and frame.class_id.isin([0, 1]).all()
+ ("4. Integrity summary", "Invalid subject names, damaged images, or duplicate filenames block inspection. Notebook 10 audits duplicate image content, excludes test-overlapping candidate subjects, and groups duplicate-linked subjects.", '''assert report["ready"] and frame.class_id.isin([0, 1]).all()
 print("PASS — source untouched; manifest saved. Official count match:", report["matches_official_counts"])''')],
      "Open **10_CNMC_Patient_Split.ipynb**; never split images randomly.")
 
 book("10_CNMC_Patient_Split.ipynb", "10 — Subject-disjoint C-NMC splits", "Freeze fold_2 as test and stratify subjects in folds 0+1 for train/validation.",
-     "Validated cnmc_manifest.csv from notebook 09.", "outputs/classifier/splits/{train,val,test}.csv and summary.json.", [
+     "Validated cnmc_manifest.csv from notebook 09.", "outputs/classifier/splits/{train,val,test,excluded}.csv, summary.json and leakage_report.json.", [
  ("2. Load source manifest", "Only labeled training folds are included; preliminary/final challenge images are excluded.", '''import pandas as pd
 from src.cnmc_data import inspect_cnmc
 source, inspection = inspect_cnmc(cfg)
 assert inspection["ready"]
 display(source.groupby(["fold", "class_name"]).size().rename("cells").reset_index())'''),
- ("3. Create or reuse immutable split", "Reruns reuse saved CSVs and compare the source fingerprint.", '''from src.cnmc_splits import create_or_load_splits, validate_splits
+ ("3. Create or reuse immutable split", "fold_2 stays fixed. Candidate subjects sharing a test subject ID or image hash are excluded and audited. Subjects linked by duplicate images stay together; conflicting labels stop splitting. Saved splits are reused.", '''from src.cnmc_splits import create_or_load_splits, validate_splits
 splits, summary = create_or_load_splits(cfg, source)
 display(pd.DataFrame(summary["counts"]).T)
 print(summary["protocol"])
+print("Excluded candidate cells:", summary.get("excluded_images", 0))
+print("Excluded candidate subjects:", summary.get("excluded_subjects", []))
+print("Leakage audit:", out / "splits" / "leakage_report.json")
 assert not (set(splits["train"].subject_id) & set(splits["val"].subject_id))'''),
- ("4. Leakage gate", "Subjects, absolute paths and SHA-256 image content must not cross splits.", '''verified = validate_splits(splits, source)
+ ("4. Leakage gate", "Subjects, absolute paths and SHA-256 image content must not cross splits. Full source coverage including excluded.csv was validated during creation/loading.", '''verified = validate_splits(splits)
 assert set(splits["test"].fold) == {"fold_2"}
 print("PASS — subject/path/content disjoint; saved manifests point to original images")''')],
      "Open **11_EfficientNet_B3_Training.ipynb** for the CUDA smoke test and two-phase training.")

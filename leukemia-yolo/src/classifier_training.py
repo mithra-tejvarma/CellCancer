@@ -91,7 +91,7 @@ def train(cfg: dict, mode: str = "full", resume: Path | None = None, *, batch_si
     seed_all(cfg["seed"])
     source, _ = inspect_cnmc(cfg, save=False)
     splits, split_info = create_or_load_splits(cfg, source)
-    validate_splits(splits, source)
+    validate_splits(splits)  # create_or_load_splits already checked full source plus documented exclusions
     for name, frame in splits.items():
         missing = [p for p in frame.absolute_path if not Path(p).is_file()]
         if missing:

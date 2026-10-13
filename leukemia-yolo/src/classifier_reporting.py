@@ -41,6 +41,9 @@ def assemble_classifier_report(cfg: dict, run: Path | None = None) -> dict:
             "source_subjects": available(inspection.get("subject_count") if inspection else None),
             "split_protocol": available(split.get("protocol") if split else None),
             "split_counts": available(split.get("counts") if split else None),
+            "excluded_candidate_images": split.get("excluded_images", 0) if split else "Not available",
+            "excluded_candidate_subjects": split.get("excluded_subjects", []) if split else "Not available",
+            "split_exclusion_policy": available(split.get("exclusion_policy") if split else None),
             "architecture": "Torchvision EfficientNet-B3", "pretrained_weights": "EfficientNet_B3_Weights.IMAGENET1K_V1",
             "training_configuration": available(config), "hardware": available(hardware),
             "completed_epochs": len(history) if history is not None else "Not available",
@@ -54,7 +57,10 @@ def assemble_classifier_report(cfg: dict, run: Path | None = None) -> dict:
     (report_dir / "classifier_experiment_summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     (report_dir / "classifier_methodology.md").write_text(
         "# Methodology\n\nC-NMC labeled training folds only. fold_2 is held out; fold_0 and fold_1 "
-        "are split by stratified subject ID. Class 0 is HEM and class 1 is ALL. "
+        "are split by stratified subject ID. Whole candidate subjects overlapping fold_2 "
+        "by identity or identical image hash are excluded and logged; subjects linked by "
+        "duplicate images stay in one split. Actual counts and exclusions are in the results table. "
+        "Class 0 is HEM and class 1 is ALL. "
         "EfficientNet-B3 ImageNet weights, two-phase fine tuning, TRAIN-only class weights, "
         "and validation macro-F1 checkpoint selection are used. The 224-pixel square resize "
         "differs from the pretrained weights' 320-resize/300-center-crop recipe.\n", encoding="utf-8")

@@ -21,7 +21,9 @@ def test_notebook_structure():
 
 def test_nontraining_notebooks_with_synthetic_cnmc(synthetic_cnmc, monkeypatch):
     dataset_root, training, config_path, cfg = synthetic_cnmc
-    training.rename(dataset_root / "C-NMC_training_data")
+    training = training.rename(dataset_root / "C-NMC_training_data")
+    (training / "fold_1" / "all" / "UID_1_1_1_all.bmp").write_bytes(
+        (training / "fold_2" / "all" / "UID_6_6_1_all.bmp").read_bytes())
     for name in ("C-NMC_test_final_phase_data", "C-NMC_test_prelim_phase_data"):
         (dataset_root / name).mkdir()
     monkeypatch.setenv("LEUKEMIA_YOLO_CONFIG", str(config_path))
@@ -33,4 +35,6 @@ def test_nontraining_notebooks_with_synthetic_cnmc(synthetic_cnmc, monkeypatch):
                        resources={"metadata": {"path": str(ROOT)}}).execute()
     base = cfg["output_path"] / "classifier"
     assert (base / "splits" / "test.csv").is_file()
+    from src.config import read_json
+    assert read_json(base / "splits" / "summary.json")["excluded_images"] == 2
     assert (base / "paper_results" / "classifier_experiment_summary.md").is_file()

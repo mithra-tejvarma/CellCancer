@@ -1,5 +1,6 @@
 """CPU synthetic integration verifies the held-out evaluation contract, not model quality."""
 import torch
+import pytest
 
 from src.cnmc_data import inspect_cnmc
 from src.cnmc_splits import create_or_load_splits
@@ -8,12 +9,17 @@ from src.classifier_evaluation import evaluate
 from src.classifier_inference import predict_paths
 
 
-def test_synthetic_checkpoint_evaluation_and_crop_prediction(synthetic_cnmc, tmp_path):
+@pytest.mark.parametrize("test_duplicate", [False, True])
+def test_synthetic_checkpoint_evaluation_and_crop_prediction(synthetic_cnmc, tmp_path, test_duplicate):
     _, training, _, cfg = synthetic_cnmc
     cfg["classifier_workers"] = 0
     cfg["classifier_batch_size"] = 2
+    if test_duplicate:
+        candidate = training / "fold_1" / "all" / "UID_1_1_1_all.bmp"
+        candidate.write_bytes((training / "fold_2" / "all" / "UID_6_6_1_all.bmp").read_bytes())
     source, _ = inspect_cnmc(cfg)
     splits, summary = create_or_load_splits(cfg, source)
+    assert summary["excluded_images"] == (2 if test_duplicate else 0)
     checkpoint = tmp_path / "best_model.pth"
     model = build_model(pretrained=False)
     torch.save({"model_state": model.state_dict(), "metadata": metadata(224),

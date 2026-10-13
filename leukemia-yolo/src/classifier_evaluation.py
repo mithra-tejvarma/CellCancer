@@ -101,7 +101,7 @@ def evaluate(cfg: dict, checkpoint: Path) -> dict:
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     source, _ = inspect_cnmc(cfg, save=False)
     splits, split_info = create_or_load_splits(cfg, source)
-    validate_splits(splits, source)
+    validate_splits(splits)  # create_or_load_splits already checked source coverage and exclusions
     checkpoint = Path(checkpoint).resolve()
     digest = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
     folder = classifier_output(cfg) / "paper_results"
