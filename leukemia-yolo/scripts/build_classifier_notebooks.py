@@ -104,7 +104,18 @@ from src.cnmc_data import inspect_cnmc
 source, inspection = inspect_cnmc(cfg)
 assert inspection["ready"]
 display(source.groupby(["fold", "class_name"]).size().rename("cells").reset_index())'''),
- ("3. Create or reuse immutable split", "fold_2 stays fixed. Candidate subjects sharing a test subject ID or image hash are excluded and audited. Subjects linked by duplicate images stay together; conflicting labels stop splitting. Saved splits are reused.", '''from src.cnmc_splits import create_or_load_splits, validate_splits
+ ("3. Create or reuse immutable split", "This cell reloads the splitter and displays its file and version so Jupyter cannot keep using the original cached function. fold_2 stays fixed; affected candidate subjects are excluded and audited. Conflicting labels stop splitting. Saved splits are reused.", '''import importlib, inspect
+import src.cnmc_splits as split_module
+importlib.invalidate_caches()
+split_module = importlib.reload(split_module)
+print("Splitter file:", Path(split_module.__file__).resolve())
+print("Splitter implementation version:", getattr(split_module, "SPLIT_IMPLEMENTATION_VERSION", "old/missing"))
+if (getattr(split_module, "SPLIT_IMPLEMENTATION_VERSION", None) != 2 or
+        "excluded" not in inspect.signature(split_module.validate_splits).parameters):
+    raise RuntimeError(f"The source file {split_module.__file__} is outdated. Copy the updated src folder "
+                       "and notebook 10 into this project, restart the kernel, and rerun from the first cell.")
+create_or_load_splits = split_module.create_or_load_splits
+validate_splits = split_module.validate_splits
 splits, summary = create_or_load_splits(cfg, source)
 display(pd.DataFrame(summary["counts"]).T)
 print(summary["protocol"])

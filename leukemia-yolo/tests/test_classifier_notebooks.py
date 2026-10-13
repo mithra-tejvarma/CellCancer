@@ -31,6 +31,14 @@ def test_nontraining_notebooks_with_synthetic_cnmc(synthetic_cnmc, monkeypatch):
     for number in (8, 9, 10, 14):
         path = next((ROOT / "notebooks").glob(f"{number:02d}_*.ipynb"))
         nb = nbformat.read(path, as_version=4)
+        if number == 10:
+            # Reproduce a running Jupyter kernel that still holds the old splitter.
+            nb.cells.insert(3, nbformat.v4.new_code_cell(
+                "import src.cnmc_splits as cached_splitter\n"
+                "def outdated_splitter(*args, **kwargs):\n"
+                "    raise RuntimeError('stale splitter was executed')\n"
+                "cached_splitter.create_or_load_splits = outdated_splitter\n"
+                "cached_splitter.SPLIT_IMPLEMENTATION_VERSION = 1"))
         NotebookClient(nb, timeout=180, kernel_name="python3",
                        resources={"metadata": {"path": str(ROOT)}}).execute()
     base = cfg["output_path"] / "classifier"

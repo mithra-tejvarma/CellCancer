@@ -12,6 +12,7 @@ from .classifier_config import classifier_output
 from .config import read_json, write_json
 
 SPLITS = ("train", "val", "test")
+SPLIT_IMPLEMENTATION_VERSION = 2
 
 
 def overlap_details(left: pd.DataFrame, right: pd.DataFrame) -> dict:
@@ -198,6 +199,7 @@ def create_or_load_splits(cfg: dict, source: pd.DataFrame | None = None) -> tupl
     write_json(report_path, audit)
     summary = {"protocol": "fold_2 fixed test; fold_0+fold_1 subject-stratified train/val; "
                            "test-overlapping candidate subjects excluded; duplicate-linked subjects grouped",
+               "split_implementation_version": SPLIT_IMPLEMENTATION_VERSION,
                "seed": cfg["seed"], "validation_subject_fraction": cfg["classifier_val_subject_fraction"],
                "actual_validation_subject_fraction": len(va_subjects) / len(subject_table),
                "excluded_images": len(excluded), "excluded_subjects": audit["excluded_subjects"],
