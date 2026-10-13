@@ -1,0 +1,14 @@
+# Install a CUDA-enabled torch and torchvision FIRST, separately.
+# setup_conda.bat constrains pip to preserve those exact installed versions.
+ultralytics>=8.3,<9
+numpy>=1.26,<3
+pandas>=2.2,<3
+matplotlib>=3.8,<4
+Pillow>=10,<13
+opencv-python>=4.9,<5
+PyYAML>=6,<7
+psutil>=5.9,<8
+defusedxml>=0.7,<1
+pytest>=8,<10
+nbformat>=5.10,<6
+nbclient>=0.10,<1

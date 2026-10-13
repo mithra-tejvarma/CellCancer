@@ -1,0 +1,17 @@
+# Copy to config.local.yaml; set dataset_root once.
+dataset_root: "D:/Datasets/BCCD_Dataset"
+processed_data_path: data/processed/BCCD_YOLO
+output_path: outputs
+model: yolov8n.pt
+epochs: 50
+imgsz: 640
+batch: 0.75
+device: 0
+amp: true
+workers: 2
+patience: 15
+seed: 42
+cache: auto
+confidence: 0.25
+iou: 0.7
+crop_wbcs: true

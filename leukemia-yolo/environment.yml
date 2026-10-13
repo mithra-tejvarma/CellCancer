@@ -1,0 +1,9 @@
+name: leukemia-yolo
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - jupyterlab>=4,<5
+  - notebook>=7,<8
+  - ipykernel>=6,<7
